@@ -25,10 +25,17 @@ def get_azure_secrets(azure_vault_url):
     
     secrets = {}
     for secret in client.list_properties_of_secrets():
+        # Get the secret name and value
         secret_name = secret.name
-        secret_value = client.get_secret(secret_name).value
-        secrets[secret_name] = secret_value
-    
+        if secret.enabled:
+            try:
+                secret_value = client.get_secret(secret_name).value
+                secrets[secret_name] = secret_value
+            except Exception as e:
+                print(f"Failed to retrieve secret {secret_name}: {e}")
+        else:
+            print(f"Secret {secret_name} is disabled, skipping.")
+
     print(f"Retrieved {len(secrets)} secrets from Azure Key Vault")
     return secrets
 
@@ -100,7 +107,7 @@ def parse_arguments():
     """
     Parse command line arguments.
     """
-    parser = argparse.ArgumentParser(description='Migrate secrets from Azure Key Vault to AWS SSM Parameter Store.'
+    parser = argparse.ArgumentParser(description='Migrate secrets from Azure Key Vault to AWS SSM Parameter Store.',
                     epilog="""
 Examples:
   python az_secrets_to_ssm_param.py my-vault
@@ -111,8 +118,8 @@ Examples:
     
 
     parser.add_argument('az_key_vault_name', type=str, help='Name of the Azure Key Vault (without .vault.azure.net suffix)')
-    parser.add_argument('--aws_ssm_param_prefix', type=str, default=None, help='Prefix for AWS SSM parameters (optional) (e.g., /myapp/secrets)')
-    parser.add_argument('--aws_profile_name', type=str, default=None, help='AWS profile name for authentication')
+    parser.add_argument('--prefix', type=str, default=None, help='Prefix for AWS SSM parameters (optional) (e.g., /myapp/secrets)')
+    parser.add_argument('--aws_profile', type=str, default=None, help='AWS profile name for authentication')
     parser.add_argument('--dry-run', action='store_true', help='If set, will not perform actual migration but output the secrets that would be migrated to CSV')
 
     return parser.parse_args()
@@ -121,5 +128,5 @@ Examples:
 if __name__ == "__main__":
     args = parse_arguments()
 
-    main(az_key_vault_name=args.az_key_vault_name, aws_ssm_param_prefix=args.aws_ssm_param_prefix, aws_profile_name=args.aws_profile_name, dry_run=args.dry_run)
+    main(az_key_vault_name=args.az_key_vault_name, aws_ssm_param_prefix=args.prefix, aws_profile_name=args.aws_profile, dry_run=args.dry_run)
     print("Script executed successfully.")
