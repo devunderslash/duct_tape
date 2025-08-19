@@ -7,6 +7,7 @@ This repository contains a collection of scripts and tools that help automate va
 ## Features
 
 - Migration scripts for various cloud providers
+- Grafana Migration scripts
 
 
 ## Installation
