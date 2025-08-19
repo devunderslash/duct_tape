@@ -1,12 +1,14 @@
 import json
 import os
+import argparse
 import requests
 from dotenv import load_dotenv
 load_dotenv()
 
-HOST = os.environ.get('GRAFANA_API_URL')
-API_KEY = os.environ.get('GRAFANA_API_KEY')
-DIR = './grafana-dash-backup/'
+# Global variables that will be set by argparse
+HOST = None
+API_KEY = None
+DIR = None
 
 def create_root_directories():
     if not os.path.exists(DIR):
@@ -15,8 +17,7 @@ def create_root_directories():
 def fetch_resources():
     headers = {'Authorization': f'Bearer {API_KEY}'}
     response = requests.get(f'{HOST}/api/search?query=&', headers=headers)
-    if response.raise_for_status():
-        return response.json()
+    response.raise_for_status()  # This will raise an exception if there's an HTTP error
     return response.json()
 
 def build_folder_map(search_results):
@@ -64,7 +65,38 @@ def export_dashboards(search_results, folders, get_full_path):
             f.write(dash_str)
             f.write('\n')
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Export Grafana dashboards to JSON files.')
+    parser.add_argument('--host', type=str, 
+                       default=os.environ.get('GRAFANA_API_URL'),
+                       help='Grafana API URL (e.g., https://grafana.example.com)')
+    parser.add_argument('--api-key', type=str, 
+                       default=os.environ.get('GRAFANA_API_KEY'),
+                       help='Grafana API Key')
+    parser.add_argument('--dir', type=str, default='./grafana-dash-backup/',
+                       help='Directory to save exported dashboards (optional)')
+    args = parser.parse_args()
+    
+    # Validate required arguments
+    if not args.host:
+        parser.error('Grafana host URL is required. Provide via --host or GRAFANA_API_URL environment variable.')
+    if not args.api_key:
+        parser.error('Grafana API key is required. Provide via --api-key or GRAFANA_API_KEY environment variable.')
+    
+    return args
+
 def main():
+    global HOST, API_KEY, DIR
+    args = parse_arguments()
+    
+    # Set global variables from parsed arguments
+    HOST = args.host.rstrip('/')  # Remove trailing slash
+    API_KEY = args.api_key
+    DIR = args.dir
+    
+    print(f"Exporting dashboards from: {HOST}")
+    print(f"Output directory: {DIR}")
+    
     create_root_directories()
     search_results = fetch_resources()
     folders, get_full_path = build_folder_map(search_results)
